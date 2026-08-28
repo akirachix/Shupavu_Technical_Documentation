@@ -1,0 +1,56 @@
+site_name: E-Madini Technical Documentation
+
+#site_url: GITHUB_PAGES_URL
+
+theme:
+  name: material
+  custom_dir: overrides
+
+  logo_light_mode: images/logo_light_mode.png
+  logo_dark_mode: images/logo_dark_mode.png
+  favicon: images/logo_light_mode.png
+
+  palette:
+    - scheme: default
+      primary: white
+      accent: green
+      toggle:
+        icon: octicons/moon-16
+        name: Switch to dark mode
+
+    - scheme: slate
+      primary: black
+      accent: green
+      toggle:
+        icon: octicons/sun-16
+        name: Switch to light mode
+
+  font:
+    text: Poppins
+    code: Fira Mono
+
+  features:
+    - navigation.sections
+    - navigation.instant
+    - navigation.expand
+    - toc.integrate
+    - search.highlight
+    - search.suggest
+    - search.share
+
+extra_css:
+  - styles/extra.css
+
+nav:
+  - Home: index.md
+  - Frontend Mobile: mobile.md
+  - Frontend Web: web.md
+  - Backend: backend.md
+  - Database: database.md
+  - AI: ai.md
+  - Quality Assurance: qa-process.md
+  - Glossary: glossary.md
+
+markdown_extensions:
+  - pymdownx.tasklist:
+      custom_checkbox: true
