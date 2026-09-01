@@ -164,11 +164,3 @@ E-Madini helps turn electronic waste into a source of valuable materials by supp
 </div>>
 
 ---
-
-## Brand Guidelines
-
-The user interface layouts strictly use our specific product branding colors, keeping presentation details separated from company color templates:
-
-* **Primary Branding Color (Dark Blue - `#151635`):** Used for top navigation headers, primary typography components, and active background states.
-* **Accent Branding Color (Green - `#44B75E`):** Applied across custom buttons, left vertical accents, active links, and border highlighters.
-
