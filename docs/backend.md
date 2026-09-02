@@ -866,7 +866,9 @@ Errors should return meaningful messages while avoiding exposure of sensitive im
 
 ---
 
-# Environment Variables
+# Setup & Installation
+
+## Environment variables 
 
 Sensitive configuration values must not be committed to GitHub.
 

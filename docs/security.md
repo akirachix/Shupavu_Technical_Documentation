@@ -102,7 +102,7 @@ The `/device-models/scan` endpoint passes the uploaded file into the YOLO classi
 
 ### Secrets management
 
-Covered in detail in [Backend Reference → Setup & Installation](backend.md#environment-variables). Summary:
+Covered in detail in [Backend Reference → Setup & Installation](backend.md#setup&installation). Summary:
 
 - All secrets are supplied via environment variables `SECRET_KEY`, `ALGORITHM`, and `MFA_ENCRYPTION_KEY` are validated at **application startup**, and the app refuses to boot if any are missing (fail-fast, not fail-open).
 - `.env` is excluded from version control via `.gitignore`.
