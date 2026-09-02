@@ -1,6 +1,6 @@
 # Security
 
-This page documents E-Madini's security posture, what's implemented and how. Deep implementation detail (code, request flows) for authentication lives in [Backend Reference → Authentication & Security](backend.md#authentication--security); this page is the consolidated, audit-style view across the whole system.
+This page documents E-Madini's security posture, what's implemented and how. Deep implementation detail (code, request flows) for authentication lives in [Backend Reference → Authentication](backend.md#authentication); this page is the consolidated, audit-style view across the whole system.
 
 The diagram below shows the security zones the platform is architected around perimeter security (WAF, API gateway, security monitoring), the trusted application zone (authentication, authorization, input validation, audit logging, the core modules, and YOLO input validation), the data zone (PostgreSQL, data classification, data security, backup/recovery), and external services (the YOLOv8 inference service and the LocationIQ integration), bounded by the CIA-triad goals and a third-party risk policy layer.
 
@@ -61,7 +61,7 @@ A WAF/CDN layer sits in front of the Heroku-hosted application, providing DDoS m
 
 ### Authentication
 
-Full detail (JWT claims, OTP flow, cookie configuration) is documented in [Backend Reference → Authentication & Security](backend.md#authentication--security). Summary of the security-relevant properties:
+Full detail (JWT claims, OTP flow, cookie configuration) is documented in [Backend Reference → Authentication](backend.md#authentication). Summary of the security-relevant properties:
 
 - Every login requires a valid password **and** a 6-digit email OTP, single-factor login is not possible.
 - OTPs are compared with `secrets.compare_digest()` (timing-safe), not `==`.
@@ -70,7 +70,7 @@ Full detail (JWT claims, OTP flow, cookie configuration) is documented in [Backe
 
 ### Input validation
 
-All request bodies are validated by **Pydantic schemas** before reaching any business logic — malformed requests never reach the database layer; FastAPI rejects them with `422` automatically. Examples of validation actually enforced:
+All request bodies are validated by **Pydantic schemas** before reaching any business logic, malformed requests never reach the database layer; FastAPI rejects them with `422` automatically. Examples of validation actually enforced:
 
 - Passwords: 8–128 characters (`UserCreate.password`)
 - Phone numbers: must match the Kenyan MSISDN pattern `^\+254[17]\d{8}$`
@@ -102,7 +102,7 @@ The `/device-models/scan` endpoint passes the uploaded file into the YOLO classi
 
 ### Secrets management
 
-Covered in detail in [Backend Reference → Setup & Installation](backend.md#required-environment-variables). Summary:
+Covered in detail in [Backend Reference → Setup & Installation](backend.md#environment-variables). Summary:
 
 - All secrets are supplied via environment variables `SECRET_KEY`, `ALGORITHM`, and `MFA_ENCRYPTION_KEY` are validated at **application startup**, and the app refuses to boot if any are missing (fail-fast, not fail-open).
 - `.env` is excluded from version control via `.gitignore`.
@@ -137,10 +137,10 @@ Uploaded images (`uploads/`) and generated disposal-report PDFs (`reports/`) are
 
 | Vendor / Dependency | Role | Risk if unavailable |
 |---|---|---|
-| **Heroku** | Hosting, Postgres, deployment | Full outage — no fallback host configured |
+| **Heroku** | Hosting, Postgres, deployment | Full outage no fallback host configured |
 | **Upstash Redis** | OTP attempt tracking, replay guards, password-reset tokens | Login and password reset both fail closed (requests error out rather than silently skipping MFA) |
 | **LocationIQ** | Address geocoding | Blocks `POST /locations/` **and** new pickup-request creation (see [LocationIQ Integration](backend.md#locationiq-integration)) |
-| **SMTP provider** | OTP delivery, password-reset emails | Users cannot complete login or reset a password — MFA is mandatory, so this is a hard dependency |
+| **SMTP provider** | OTP delivery, password-reset emails | Users cannot complete login or reset a password, MFA is mandatory, so this is a hard dependency |
 
 Vendor security posture (sub-processor agreements, compliance reports) for these providers has been reviewed as part of standard vendor oversight.
 
@@ -148,5 +148,5 @@ Vendor security posture (sub-processor agreements, compliance reports) for these
 
 ## Conclusion
 
-E-Madini's backend security posture covers authentication (hashed passwords, mandatory MFA, httpOnly/secure session cookies), transport and network hardening (scoped CORS, WAF/CDN, rate limiting), data protection (encryption at rest, persistent and access-scoped file storage), and operational readiness (error tracking, key-rotation process, automated tests covering the core auth and business-logic flows). Ongoing work should focus on maintaining this posture as new features are added — any new endpoint, especially one accepting user input or files, should be held to the same validation and access-control standard documented above.
+E-Madini's backend security posture covers authentication (hashed passwords, mandatory MFA, httpOnly/secure session cookies), transport and network hardening (scoped CORS, WAF/CDN, rate limiting), data protection (encryption at rest, persistent and access-scoped file storage), and operational readiness (error tracking, key-rotation process, automated tests covering the core auth and business-logic flows). Ongoing work should focus on maintaining this posture as new features are added any new endpoint, especially one accepting user input or files, should be held to the same validation and access-control standard documented above.
 

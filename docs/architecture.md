@@ -44,7 +44,7 @@ Every one of these journeys converges on the same two integration points **the E
 |---|---|---|---|
 | **PWA (Producer & Recycler client)** | A single Progressive Web App, shared by both user roles | Presents the disposal/collection workflows appropriate to whichever role is signed in | Frontend: see the [Frontend Web](web.md) 
 | **Location Module** | A backend service responsible for turning addresses into coordinates | Sends location requests to LocationIQ, retrieves and stores resolved coordinates, and serves both a producer's and a recycler's location back to the PWA | `emadini/services/location_service.py` see [LocationIQ Integration](backend.md#locationiq-integration) |
-| **Collection Management and Tracking** | The pickup-request lifecycle engine | Accepts pickup requests, assigns the nearest available recycler, tracks status (pending → accepted → completed/rejected), and exposes pickup details back to both parties | `emadini/services/pickup_request_service.py` see [Data Models → pickup_request](backend.md#pickup_request) |
+| **Collection Management and Tracking** | The pickup-request lifecycle engine | Accepts pickup requests, assigns the nearest available recycler, tracks status (pending → accepted → completed/rejected), and exposes pickup details back to both parties | `emadini/services/pickup_request_service.py` see [Pickup Request Management](backend.md#pickup-request-management)|
 | **Device Material Composition** | The AI-assisted material-intelligence module | Receives device images, orchestrates classification and the materials lookup, and returns/stores the recovered composition | `emadini/services/device_model_service.py`, `emadini/ml/`see [AI Engine](ai.md) |
 | **E-Madini API** | The FastAPI backend itself | The single point every module (Location, Collection, Device Material Composition) goes through to read or write persisted data | `main.py` + the full `emadini/` package see [Backend Reference](backend.md) |
 | **Database** | PostgreSQL | Stores users, locations, pickup requests, device models, and disposal reports | See [Data Models](https://docs.google.com/document/d/1zPRvm_of4BKhYtEVbAssXGb_Ui8bDXmn1xSCOZOwiyQ/edit?tab=t.unrp0r90be22) |
@@ -113,7 +113,7 @@ Producer's PWA requests "Get EPR Report"
 Report retrieved from the Database and returned as a downloadable file
 ```
 
-Across all three flows, note that the **PWA never talks to LocationIQ or YOLOv11 directly** — every external integration is mediated by the E-Madini API's relevant module. This keeps API keys and model weights entirely server-side and gives the backend a single place to apply auth, validation, and error handling before any external call is made.
+Across all three flows, note that the **PWA never talks to LocationIQ or YOLOv11 directly** every external integration is mediated by the E-Madini API's relevant module. This keeps API keys and model weights entirely server-side and gives the backend a single place to apply auth, validation, and error handling before any external call is made.
 
 ---
 
