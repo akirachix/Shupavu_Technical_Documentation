@@ -399,6 +399,7 @@ The client includes the token in subsequent requests:
 
 ```text
 Authorization: Bearer <token>
+The token is delivered as an httpOnly cookie (`access_token`), not a header the browser sends it automatically on subsequent requests, and it's never exposed to client-side JavaScript.
 ```
 
 ---
@@ -430,6 +431,23 @@ Password Hash Verification
    v         v
 Generate    Reject
 JWT         Request
+
+## Multi-Factor Authentication (OTP)
+
+Login is not single-factor which a valid password only produces a temporary MFA token, not a session. The full flow:
+
+1. `POST /auth/login` verifies the password, then generates a 6-digit OTP.
+2. The OTP is encrypted (along with the user ID and a purpose flag) using a separate symmetric key, producing a short-lived `mfa_token`. This token self-expires after 1 minute.
+3. The OTP is emailed to the user.
+4. `POST /auth/verify-otp` checks the submitted OTP against the encrypted token using a timing-safe comparison, then issues the real access token.
+
+Two protections apply during verification:
+
+- Replay protection: once an OTP is successfully used, it can't be submitted again.
+- Brute-force protection: after 5 failed attempts, the user must log in again to get a fresh OTP.
+
+The resulting access token is valid for 180 minutes and is delivered as the httpOnly cookie described above.
+
 ```
 
 ---
@@ -703,6 +721,19 @@ A pickup request may contain:
 
 ---
 
+The `status` field drives the request lifecycle and only moves in one direction:
+
+```text
+PENDING → ACCEPTED → COMPLETED
+   │          │
+   ▼          ▼
+REJECTED   REJECTED
+```
+
+A request starts as `PENDING`. The assigned recycler can accept (`ACCEPTED`) or reject (`REJECTED`) it. An accepted request can only move to `COMPLETED` or `REJECTED` it can never go back to `PENDING`.
+
+---
+
 # Disposal and Processing Reports
 
 The disposal report module records information associated with completed processing activities.
@@ -835,7 +866,9 @@ Errors should return meaningful messages while avoiding exposure of sensitive im
 
 ---
 
-# Environment Variables
+# Setup & Installation
+
+## Environment variables 
 
 Sensitive configuration values must not be committed to GitHub.
 
@@ -1384,23 +1417,95 @@ The backend acts as the integration layer between E-Madini components.
 
 ---
 
-# External Integrations
+# External Integration
 
-## LocationIQ
+## LocationIQ Integration
 
-Used for converting address information into geographic coordinates.
+E-Madini never stores raw coordinates entered by hand every `Location` row is created by geocoding a plain-text address through [LocationIQ](https://locationiq.com/). This happens in exactly two places: the `POST /locations/` endpoint, and internally whenever a pickup request is created from an address (`create_location_from_address()` is shared by both).
 
-Purpose:
+### Where it lives
 
-- Address geocoding
-- Latitude and longitude resolution
-- Location-based operational records
+All of the integration logic is in one place `emadini/services/location_service.py` routers never call LocationIQ directly.
 
-Configuration:
+```python
+LOCATIONIQ_KEY = os.getenv("LOCATIONIQ_KEY")
+BASE_URL = os.getenv("BASE_URL")  
+
+class LocationService:
+    def __init__(self, db: Session):
+        self.db = db
+        self.repo = LocationRepository(db)
+
+    def create_location(self, data: LocationCreate) -> Location:
+        return self.create_location_from_address(data.address)
+
+    def create_location_from_address(self, address: str) -> Location:
+        """Geocode an address via LocationIQ and persist the result.
+        Reused by both the /locations endpoint and pickup-request creation."""
+        ...
+```
+
+### Request flow
 
 ```text
-LOCATIONIQ_API_KEY=<secret>
+address: str
+      │
+      ▼
+GET {BASE_URL}?key={LOCATIONIQ_KEY}&q={address}&format=json&limit=1
+      │
+      ▼
+LocationIQ returns a JSON array; first result is used
+      │
+      ▼
+lat, lon, display_name extracted
+      │
+      ▼
+Location row created:  Location(location_id, address, latitude, longitude, display_name)
 ```
+
+The actual outbound call, with a hard 10-second timeout so a slow geocoder can't hang a request indefinitely:
+
+```python
+params = {"key": LOCATIONIQ_KEY, "q": address, "format": "json", "limit": 1}
+
+try:
+    response = requests.get(BASE_URL, params=params, timeout=10)
+except requests.RequestException:
+    raise HTTPException(status_code=503, detail="Geocoding provider is temporarily unreachable.")
+```
+
+### Every failure mode is handled explicitly
+
+This isn't a bare `try/except` each LocationIQ response is mapped to a specific, meaningful API error:
+
+| LocationIQ response | E-Madini raises | Meaning |
+|---|---|---|
+| Network error / timeout | `503 Service Unavailable` | LocationIQ is unreachable |
+| `401` from LocationIQ | `401 Unauthorized` | `LOCATIONIQ_KEY` is invalid, expired, or over quota |
+| `404` from LocationIQ | `400 Bad Request` | The address genuinely couldn't be geocoded |
+| `429` from LocationIQ | `429 Too Many Requests` | LocationIQ's own rate limit was hit, passed straight through to the caller |
+| Any other `4xx/5xx` | `400 Bad Request` | Generic "address validation failed (status N)" |
+| `200` but empty/malformed body | `400 Bad Request` | Response didn't contain a usable `lat`/`lon`/`display_name` |
+| `LOCATIONIQ_KEY` or `BASE_URL` not set | `500 Internal Server Error` | Server misconfiguration, checked before the request is even made |
+
+```python
+if not LOCATIONIQ_KEY or not BASE_URL:
+    raise HTTPException(status_code=500, detail="Server misconfiguration: LOCATIONIQ_KEY/BASE_URL is not set.")
+```
+
+### Why this matters beyond `/locations`
+
+Because `create_location_from_address()` is reused by `PickupRequestService.create_request()` (see [Service layer](#service-layer)), **every pickup request creation also depends on LocationIQ being reachable and correctly configured**. A LocationIQ outage doesn't just break `POST /locations/` it also blocks producers from submitting new pickup requests, since the request's `Location` and its nearest-recycler assignment both depend on a successful geocode first.
+
+### Required configuration
+
+| Variable | Purpose |
+|---|---|
+| `LOCATIONIQ_KEY` | Your LocationIQ API key |
+| `BASE_URL` | LocationIQ's geocoding/search endpoint (e.g. `https://us1.locationiq.com/v1/search.php`) |
+
+Both are validated at request time (not startup) and an unset key surfaces as a `500` on the first call that needs geocoding, rather than preventing the app from booting.
+
 
 ---
 
