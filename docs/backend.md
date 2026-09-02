@@ -866,7 +866,7 @@ Errors should return meaningful messages while avoiding exposure of sensitive im
 
 ---
 
-# Setup & Installation
+# Setup and Installation
 
 ## Environment variables 
 
