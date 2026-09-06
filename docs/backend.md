@@ -1495,7 +1495,7 @@ if not LOCATIONIQ_KEY or not BASE_URL:
 
 ### Why this matters beyond `/locations`
 
-Because `create_location_from_address()` is reused by `PickupRequestService.create_request()` (see [Service layer](#service-layer)), **every pickup request creation also depends on LocationIQ being reachable and correctly configured**. A LocationIQ outage doesn't just break `POST /locations/` it also blocks producers from submitting new pickup requests, since the request's `Location` and its nearest-recycler assignment both depend on a successful geocode first.
+Because `create_location_from_address()` is reused by `PickupRequestService.create_request()`, **every pickup request creation also depends on LocationIQ being reachable and correctly configured**.
 
 ### Required configuration
 
